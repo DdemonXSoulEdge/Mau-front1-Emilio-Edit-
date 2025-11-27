@@ -51,7 +51,7 @@ export class MapaComponent implements OnInit, AfterViewInit {
     sunny: 'Cielos despejados y temperaturas agradables.'
   };
 
-  private backendUrl = 'https://login-spe2.onrender.com';
+  private backendUrl = 'http://localhost:5001';
   private http = inject(HttpClient);
 
   constructor(private router: Router) {}
@@ -66,25 +66,27 @@ export class MapaComponent implements OnInit, AfterViewInit {
     this.initializeMap();
   }
 
-  // ---------------------------------------
-  //     CARGA DE REGISTROS.JSON (nuevo)
-  // ---------------------------------------
+ 
 
   private loadWeatherData(): void {
-    this.http.get<any[]>('WeatheriaBackend/weatheria/registros.json').subscribe({
+  this.http
+    .get<any[]>('https://weatheriadx-default-rtdb.firebaseio.com/json_data.json')
+    .subscribe({
       next: (data) => {
         if (Array.isArray(data) && data.length > 0) {
-          const registro = data[data.length - 1];
+          const registro = data[data.length - 1]; 
 
           this.currentTemp = `${registro.temp} °C`;
           this.currentWeatherState = this.getWeatherState(registro);
         } else {
-          console.warn('registros.json vacío.');
+          console.warn('No hay datos disponibles en Firebase (json_data).');
         }
       },
-      error: (err) => console.error('Error cargando registros.json:', err)
+      error: (err) =>
+        console.error('Error al cargar json_data desde Firebase:', err)
     });
-  }
+}
+
 
   private getWeatherState(registro: any): WeatherState {
     const hora = new Date().getHours();

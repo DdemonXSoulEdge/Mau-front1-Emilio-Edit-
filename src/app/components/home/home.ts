@@ -170,7 +170,7 @@ private loadPronosticoDias(): void {
     console.log('Payload enviado:', payload);
 
     // Si tienes backend, descomenta y ajusta la URL:
-    // this.http.post('http://localhost:5001/report_flood', payload).subscribe(...);
+    this.http.post('https://login-spe2.onrender.com/report_flood', payload);
   }
 
   get currentDescription(): string {

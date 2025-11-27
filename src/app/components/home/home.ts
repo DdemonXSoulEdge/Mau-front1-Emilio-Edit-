@@ -62,22 +62,25 @@ export class HomeComponent implements OnInit {
   }
 
   private loadWeatherData(): void {
-    this.http.get<any[]>('WeatheriaBackend/weatheria/registros.json').subscribe({
+  this.http
+    .get<any[]>('https://weatheriadx-default-rtdb.firebaseio.com/json_data.json')
+    .subscribe({
       next: (data) => {
-        if (data && data.length > 0) {
-          const registro = data[data.length - 1]; // último registro
+        if (data && Array.isArray(data) && data.length > 0) {
+          const registro = data[data.length - 1]; 
+
           this.currentTemp = `${registro.temp} °C`;
           this.currentWeatherState = this.getWeatherState(registro);
-          // NOTA: no tocamos hourlyForecast aquí (se llena desde pronóstico de días)
         } else {
-          console.warn('No hay datos disponibles en registros.json.');
+          console.warn('No hay datos disponibles en Firebase (json_data).');
         }
       },
       error: (err) => {
-        console.error('Error al cargar registros.json:', err);
+        console.error('Error al cargar json_data desde Firebase:', err);
       }
     });
-  }
+}
+
 
   /** Lógica día/noche y estado del clima basada en registro */
   private getWeatherState(registro: any): WeatherState {
@@ -96,68 +99,74 @@ export class HomeComponent implements OnInit {
 
   
 private loadPronosticoDias(): void {
-  this.http.get<any[]>('WeatheriaBackend/weatheria/pronostico_lluvia_queretaro.json').subscribe({
-    next: (data) => {
-      if (!Array.isArray(data) || data.length === 0) {
-        console.warn('Pronostico_lluvia_queretaro.json vacío o no es un arreglo.');
-        this.hourlyForecast = [];
-        return;
-      }
+  this.http
+    .get<any>('https://weatheriadx-default-rtdb.firebaseio.com/pronostico_queretaro.json')
+    .subscribe({
+      next: (data) => {
 
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-
-      // ⚙️ Convertir manualmente las fechas del JSON a hora local (evita desfase UTC)
-      const pronosticosValidos = data
-        .map((dia) => {
-          const [year, month, day] = dia.fecha.split('-').map(Number);
-          const fechaLocal = new Date(year, month - 1, day, 0, 0, 0); // <-- local time
-          return { ...dia, fechaObj: fechaLocal };
-        })
-        .filter((d) => !isNaN(d.fechaObj.getTime()) && d.fechaObj >= hoy)
-        .sort((a, b) => a.fechaObj.getTime() - b.fechaObj.getTime());
-
-      if (pronosticosValidos.length === 0) {
-        console.warn('No hay pronósticos válidos para hoy o días futuros.');
-        this.hourlyForecast = [];
-        return;
-      }
-
-      this.hourlyForecast = pronosticosValidos.map((dia) => {
-        const dayName = dia.fechaObj.toLocaleDateString('es-ES', { weekday: 'short' }); // ej "mié"
-
-        let icon = '☁️';
-        if (dia.llovera_modelo === 1 || dia.llovera_modelo === true) {
-          icon = '🌧️';
-        } else {
-          const condicion = (dia.condicion || '').toString().toLowerCase();
-          if (condicion.includes('sunny') || condicion.includes('soleado')) {
-            icon = '☀️';
-          } else {
-            icon = '☁️';
-          }
+        if (!data || !Array.isArray(data.predicciones)) {
+          console.warn('No hay predicciones válidas en Firebase.');
+          this.hourlyForecast = [];
+          return;
         }
 
-        const tempLabel = (typeof dia.prob_lluvia_api === 'number')
-          ? `${dia.prob_lluvia_api}%`
-          : '—';
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
 
-        return {
-          day: dayName.charAt(0).toUpperCase() + dayName.slice(1),
-          icon,
-          temp: tempLabel
-        } as HourlyWeather;
-      });
-    },
-    error: (err) => {
-      console.error('Error al cargar pronostico_lluvia_queretaro.json:', err);
-      this.hourlyForecast = [];
-    }
-  });
+        const pronosticosValidos = data.predicciones
+          .map((dia: any) => {
+            const [year, month, day] = dia.fecha.split('-').map(Number);
+            const fechaLocal = new Date(year, month - 1, day, 0, 0, 0);
+            return { ...dia, fechaObj: fechaLocal };
+          })
+          .filter((d: any) => !isNaN(d.fechaObj.getTime()) && d.fechaObj >= hoy)
+          .sort((a: any, b: any) => a.fechaObj.getTime() - b.fechaObj.getTime());
+
+        if (pronosticosValidos.length === 0) {
+          console.warn('No hay pronósticos futuros disponibles.');
+          this.hourlyForecast = [];
+          return;
+        }
+
+        this.hourlyForecast = pronosticosValidos.map((dia: any) => {
+          const dayName = dia.fechaObj.toLocaleDateString('es-ES', {
+            weekday: 'short'
+          });
+
+          let icon = '☁️';
+
+          if (dia.llovera_modelo === true) {
+            icon = '🌧️';
+          } else {
+            const condicion = (dia.condicion || '').toLowerCase();
+            if (condicion.includes('sunny') || condicion.includes('soleado')) {
+              icon = '☀️';
+            } else {
+              icon = '☁️';
+            }
+          }
+
+          const tempLabel =
+            typeof dia.prob_lluvia_api === 'number'
+              ? `${dia.prob_lluvia_api}%`
+              : '—';
+
+          return {
+            day: dayName.charAt(0).toUpperCase() + dayName.slice(1),
+            icon,
+            temp: tempLabel
+          } as HourlyWeather;
+        });
+      },
+
+      error: (err) => {
+        console.error('Error al cargar pronóstico desde Firebase:', err);
+        this.hourlyForecast = [];
+      }
+    });
 }
 
 
-  /** Envía reporte de inundación (mantengo como antes) */
   reportFlood() {
     const payload = {
       ubicacion: this.location,
@@ -170,7 +179,7 @@ private loadPronosticoDias(): void {
     console.log('Payload enviado:', payload);
 
     // Si tienes backend, descomenta y ajusta la URL:
-    this.http.post('https://login-spe2.onrender.com/report_flood', payload);
+    // this.http.post('http://localhost:5001/report_flood', payload).subscribe(...);
   }
 
   get currentDescription(): string {

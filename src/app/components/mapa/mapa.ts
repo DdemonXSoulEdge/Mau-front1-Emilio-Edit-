@@ -51,7 +51,7 @@ export class MapaComponent implements OnInit, AfterViewInit {
     sunny: 'Cielos despejados y temperaturas agradables.'
   };
 
-  private backendUrl = 'https://sync-ap8q.onrender.com';
+  private backendUrl = 'https://login-spe2.onrender.com';
   private http = inject(HttpClient);
 
   constructor(private router: Router) {}

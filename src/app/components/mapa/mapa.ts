@@ -70,7 +70,8 @@ export class MapaComponent implements OnInit, AfterViewInit {
 
   private loadWeatherData(): void {
   this.http
-      .get<any[]>('https://weatheriadx-default-rtdb.firebaseio.com/json_data.json')    .subscribe({
+    .get<any[]>('https://weatheriadx-default-rtdb.firebaseio.com/json_data.json')
+    .subscribe({
       next: (data) => {
         if (Array.isArray(data) && data.length > 0) {
           const registro = data[data.length - 1]; 
@@ -140,42 +141,30 @@ export class MapaComponent implements OnInit, AfterViewInit {
   }
 
   loadMarkers() {
-  this.http
-    .get<any[]>('https://weatheriadx-default-rtdb.firebaseio.com/flood_reports.json')
-    .subscribe({
-      next: (reports) => {
-        if (!Array.isArray(reports)) {
-          console.warn('No hay reportes en Firebase.');
-          return;
-        }
-
+    this.http.get(`${this.backendUrl}/flood_history`).subscribe({
+      next: (response: any) => {
+        const reports = response.intData.data || [];
         const now = new Date();
         const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-        const validReports = reports.filter(
-          (r: any) => r.lat != null && r.lng != null && new Date(r.created_at) > cutoff
-        );
+        const validReports = reports.filter((r: any) => new Date(r.created_at) > cutoff);
+        const manualMarkers = this.markers.filter(m => m.icon.url.includes('red-dot'));
 
-        const manualMarkers = this.markers.filter(m =>
-          m.icon.url.includes('red-dot')
-        );
+        const reportMarkers = validReports
+          .filter((r: any) => r.lat != null && r.lng != null)
+          .map((r: any) => ({
+            id: r.id,
+            lat: r.lat,
+            lng: r.lng,
+            title: 'Inundación Reportada',
+            icon: { url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png' }
+          }));
 
-        const firebaseMarkers = validReports.map((r: any) => ({
-          id: Date.now() + Math.random(),
-          lat: r.lat,
-          lng: r.lng,
-          title: 'Inundación Reportada',
-          icon: {
-            url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png'
-          }
-        }));
-
-        this.markers = [...manualMarkers, ...firebaseMarkers];
+        this.markers = [...manualMarkers, ...reportMarkers];
       },
-      error: (err) => console.error('Error cargando flood_reports desde Firebase:', err)
+      error: (err) => console.error('Error loading markers:', err)
     });
-}
-
+  }
 
   reportFlood() {
     if (this.isReporting) return;
@@ -253,17 +242,26 @@ export class MapaComponent implements OnInit, AfterViewInit {
       lat: this.selectedCoords.lat,
       lng: this.selectedCoords.lng,
       created_at: new Date().toISOString()
+    const payload = {
+      mensaje: 'Se ha reportado una posible inundación desde el mapa.',
+      ubicacion: userLocation,
+      fecha: this.currentDate,
+      temperatura: this.currentTemp,
+      descripcion_clima: this.currentDescription
     };
 
-    this.http
-      .post(
-        'https://weatheriadx-default-rtdb.firebaseio.com/flood_reports.json',
-        firebasePayload
-      )
-      .subscribe();
+    this.http.post(`${this.backendUrl}/report_flood`, payload).subscribe({
+      next: () => {
+        alert('Reporte enviado.');
+        if (tempId && tempId < 0) {
+          this.markers = this.markers.filter(m => m.id !== tempId);
+          this.loadMarkers();
+        }
+      },
+      error: () => alert('No se pudo enviar el correo.'),
+      complete: () => (this.isReporting = false)
+    });
   }
-}
-
 
   zoomIn() {
     this.zoomLevel++;

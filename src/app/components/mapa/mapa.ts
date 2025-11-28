@@ -212,6 +212,36 @@ export class MapaComponent implements OnInit, AfterViewInit {
   }
 
   private sendReport(userLocation: string, tempId?: number) {
+  const payload = {
+    mensaje: 'Se ha reportado una posible inundación desde el mapa.',
+    ubicacion: userLocation,
+    fecha: this.currentDate,
+    temperatura: this.currentTemp,
+    descripcion_clima: this.currentDescription
+  };
+
+  this.http.post<any>(`${this.backendUrl}/report_flood`, payload).subscribe({
+  next: (res) => {
+    if (res?.statusCode === 200) {
+      alert('Reporte enviado correctamente');
+    } else {
+      alert('El servidor respondió, pero con error');
+      console.warn(res);
+    }
+  },
+  error: (err) => {
+    alert('Error al enviar el reporte');
+    console.error(err);
+  },
+  complete: () => (this.isReporting = false)
+});
+
+
+  if (this.selectedCoords) {
+    const firebasePayload = {
+      lat: this.selectedCoords.lat,
+      lng: this.selectedCoords.lng,
+      created_at: new Date().toISOString()
     const payload = {
       mensaje: 'Se ha reportado una posible inundación desde el mapa.',
       ubicacion: userLocation,
@@ -257,3 +287,6 @@ export class MapaComponent implements OnInit, AfterViewInit {
     });
   }
 }
+
+
+//hola

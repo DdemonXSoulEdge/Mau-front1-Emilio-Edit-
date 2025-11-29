@@ -11,8 +11,8 @@ export const routes: Routes = [
   { path: '', redirectTo: '/home', pathMatch: 'full' },
   { path: 'login', component: LoginComponent },
   { path: 'home', component: HomeComponent },
-  { path: 'dashboard', component: DashboardComponent, canActivate: [AuthGuard] },
-  { path: 'historial', component: HistorialComponent , canActivate: [AuthGuard] },
+  { path: 'dashboard', component: DashboardComponent},
+  { path: 'historial', component: HistorialComponent},
   { path: 'day-detail', component: DayDetailComponent },
   { path: 'day-detail/:id', component: DayDetailComponent },
   { path: 'mapa', component: MapaComponent }
